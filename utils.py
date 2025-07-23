@@ -4,9 +4,7 @@ import random
 import numpy as np
 import torch
 import torch.nn as nn
-from torchvision import transforms
 from torch.utils.data import Subset, DataLoader
-from torchvision.datasets import MNIST, CIFAR10, SVHN
 from torch import optim
 
 from load import get_dataset, get_backdoor_dataset, get_vocabsize

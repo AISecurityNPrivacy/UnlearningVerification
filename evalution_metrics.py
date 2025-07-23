@@ -219,17 +219,6 @@ def evaluate_with_prob_average_all(target_model, test_dict, base_model, dataload
             avg_consistent = total_consistent / total_samples
             acc_target = total_correct_target / total_samples
             acc_ensemble = total_correct_ensemble / total_samples
-
-            print(f"Results for {name}:")
-            print(f"  Small Model Accuracy: {acc_ensemble * 100:.2f}%")
-            print(f"  Small Model : {model_name}")
-            print(f"  Unlearn Model Accuracy: {acc_target * 100:.2f}%")
-            print(f"  Average Fidelity (KL Divergence): {avg_fidelity_kl}")
-            print(f"  Average Agreement Rate diff: {abs(avg_agreement - avg_agreement_base) * 100:.2f}%")
-            print(f"  Average Agreement Rate: {avg_agreement * 100:.2f}%")
-            print(f"  Average Consistent Rate: {avg_consistent * 100:.2f}%")
-            print(f"  Average base Agreement Rate: {avg_agreement_base * 100:.2f}%")
-            print(f"  Average Fidelity_base (KL Divergence): {avg_fidelity_kl_base}")
             results_list.append({
                 "Dataset": name,
                 "Ensemble Accuracy": round(acc_ensemble*100, 2),
@@ -249,7 +238,7 @@ def evaluate_with_prob_average_all(target_model, test_dict, base_model, dataload
 def evaluate_with_prob_average_adapt(target_model, test_dict, base_model, dataloaders_dict, device):
     target_model.eval()
     Du_loader = dataloaders_dict['Du']
-    acc = acc_calculate(target_model, Du_loader, device)
+    acc = acc_calculate(target_model, Du_loader, device) * 100
     mv_acc = test_dict['Du']
     index, _ = min(
         enumerate(mv_acc),

@@ -1,7 +1,7 @@
 import argparse
 from utils import *
-from evalution_metrics import evaluate_with_prob_average_adapt, evaluate_with_prob_average
-
+from evalution_metrics import evaluate_with_prob_average_all, evaluate_with_prob_average_adapt, evaluate_with_prob_average
+import pandas as pd
 
 def save_evaluation_to_file_adapt(target_model, test_dict, base_models,dataloaders_dict, device, output_file):
     """
@@ -51,7 +51,9 @@ def load_models(dataset_name, num_classes, model_list, du_rate, scene, device):
     eval_models = []
     folder_name = du_rate if scene == 'basic' else scene
 
+    print('loading unlearn_models...')
     for eval_model_name in model_list:
+        print(f'loading {eval_model_name}')
         if eval_model_name == 'forge':
             eval_model = torch.load(f"models/{folder_name}/{dataset_name}/model/{dataset_name}_{eval_model_name}/{eval_model_name}.pth")
         else:
@@ -59,13 +61,13 @@ def load_models(dataset_name, num_classes, model_list, du_rate, scene, device):
             eval_model.load_state_dict(torch.load(f"models/{folder_name}/{dataset_name}/model/{dataset_name}_{eval_model_name}/{eval_model_name}.pth"))
         eval_models.append((eval_model_name, eval_model))
 
-    sim_folder_path = f'models/{folder_name}/{dataset_name}/models/{dataset_name}_SIM'
+    print('\nloading Mv in all rates...')
+    sim_folder_path = f'models/{folder_name}/{dataset_name}/model/{dataset_name}_SIM'
     test_paths = []
     for root, dirs, files in os.walk(sim_folder_path):
         for i in dirs:
             dir_path = os.path.join(sim_folder_path, i)
             test_paths.append(dir_path)
-            print(dir_path)
     sim_models = []
     sim_model_names = []
     ACC_DR = []
@@ -73,31 +75,33 @@ def load_models(dataset_name, num_classes, model_list, du_rate, scene, device):
     ACC_DT = []
     for m in test_paths:
         weight_path = os.path.join(m, [f for f in os.listdir(m) if f.endswith('.pth')][0])
-        print(weight_path)
-        test_model = init_model(dataset_name, num_classes, scene, device)
-        test_model.load_state_dict(torch.load(weight_path))
-        Dr_acc = test_model(test_model, test_dr, device)
-        Du_acc = test_model(test_model, test_du, device)
-        Dt_acc = test_model(test_model, test_loader, device)
-        test_models = [test_model.to(device)]
+        print(f'loading {weight_path}')
+        Mv_model = init_model(dataset_name, num_classes, scene, device)
+        Mv_model.load_state_dict(torch.load(weight_path))
+        Dr_acc = test_model(Mv_model, test_dr, device)
+        Du_acc = test_model(Mv_model, test_du, device)
+        Dt_acc = test_model(Mv_model, test_loader, device)
+        Mv_models = [Mv_model.to(device)]
         sim_model_names.append(m)
         ACC_DR.append(Dr_acc)
         ACC_DU.append(Du_acc)
         ACC_DT.append(Dt_acc)
-        sim_models.append(test_models)
+        sim_models.append(Mv_models)
     test_dict = {'model': sim_models, 'Du': ACC_DU, 'Dr': ACC_DR, 'Test': ACC_DT, 'name': sim_model_names}
 
+    print('\nloading base models...')
     base_agree1 = init_model(dataset_name, num_classes, scene, device)
-    base_agree1.load_state_dict(torch.load(f"models/{folder_name}/{dataset_name}/models/{dataset_name}_agree1/agree1.pth"))
+    base_agree1.load_state_dict(torch.load(f"models/{folder_name}/{dataset_name}/model/{dataset_name}_agree1/agree1.pth"))
     base_agree2 = init_model(dataset_name, num_classes, scene, device)
-    base_agree2.load_state_dict(torch.load(f"models/{folder_name}/{dataset_name}/models/{dataset_name}_agree2/agree2.pth"))
+    base_agree2.load_state_dict(torch.load(f"models/{folder_name}/{dataset_name}/model/{dataset_name}_agree2/agree2.pth"))
     base_models = [base_agree1, base_agree2]
 
+    print('\nloading adv flit Mv...')
     adv_Mv = init_model(dataset_name, num_classes, scene, device)
-    adv_Mv.load_state_dict(torch.load(f'models/{folder_name}/{dataset_name}/models/{dataset_name}_Adv_SIM/Adv_SIM.pth'))
+    adv_Mv.load_state_dict(torch.load(f'models/{folder_name}/{dataset_name}/model/{dataset_name}_Adv_SIM/Adv_SIM.pth'))
     adv_Mvs = [adv_Mv]
 
-    return ul_models, test_dict, base_models, adv_Mvs
+    return eval_models, test_dict, base_models, adv_Mvs
 
 if __name__ == "__main__":
     random_seed = 2568
@@ -127,6 +131,7 @@ if __name__ == "__main__":
         device = args.device
     result_path = args.res_path
     scene = args.scenario
+    Mv_mode = args.mv_rate
     adapt_mode = True if args.mv_rate == 'adapt' else False
     if dataset_name == 'IMDb':
         num_classes = 2
@@ -145,32 +150,51 @@ if __name__ == "__main__":
 
     ul_model_list = ['adv_sn', 'attack_retrain', 'certified_unlearn', 'fisher',
                      'fisher_hessian', 'forge', 'gradient_ascent', 'gradient_ascent_finetune', 'pretrain',
-                     'pretrain_finetune', 'random', 'random_finetune', 'retrain']
+                     'pretrain_finetune', 'random', 'random_finetune', 'retrain'] #
 
     ul_models, SIM_dict, base_list, adv_list = load_models(dataset_name, num_classes, ul_model_list, du_rate, scene, device)
     rate = du_rate if scene == 'basic' else 0.2
 
-    for model_name, model in ul_models:
-        print(f"Evaluating {model_name}...")
-        if model_name == 'adv_sn':
-            save_evaluation_to_file(
-                model,
-                adv_list,
-                base_list,
-                {'Du': test_du, 'Dr': test_dr, 'Test': test_loader},
-                device,
-                f"{result_path}/{scene}/{rate}/{dataset_name}/adv_flit_results.txt"
-            )
-            print(f"Completed evaluation of Adv_sn")
-        else:
-            save_evaluation_to_file_adapt(
+    if Mv_mode == 'adapt':
+        for model_name, model in ul_models:
+            print(f"Evaluating {model_name}...")
+            if model_name == 'adv_sn':
+                save_evaluation_to_file(
+                    model,
+                    adv_list,
+                    base_list,
+                    {'Du': test_du, 'Dr': test_dr, 'Test': test_loader},
+                    device,
+                    f"{result_path}/{scene}/{rate}/{dataset_name}/adv_flit_results.txt"
+                )
+                print(f"Completed evaluation of Adv_sn")
+            else:
+                save_evaluation_to_file_adapt(
+                    model,
+                    SIM_dict,
+                    base_list,
+                    {'Du': test_du, 'Dr': test_dr, 'Test': test_loader},
+                    device,
+                    f"{result_path}/{scene}/{rate}/{dataset_name}/{model_name}_results.txt"
+                )
+                print(f"Completed evaluation of {model_name}")
+    else:
+        results_all_df = pd.DataFrame()
+        for model_name, model in ul_models:
+            print(f"Evaluating {model_name}...")
+            df = evaluate_with_prob_average_all(
                 model,
                 SIM_dict,
                 base_list,
                 {'Du': test_du, 'Dr': test_dr, 'Test': test_loader},
                 device,
-                f"{result_path}/{scene}/{rate}/{dataset_name}/{model_name}_results.txt"
+                dataset_name,
+                model_name
             )
+            results_all_df = pd.concat([results_all_df, df], ignore_index=True)
             print(f"Completed evaluation of {model_name}")
+
+        results_all_df.to_csv(f"{result_path}/{scene}/{rate}/{dataset_name}/all_models_evaluation.csv", index=False)
+        print("All evaluation results saved to all_models_evaluation.csv")
 
 

@@ -170,5 +170,4 @@ def get_vocabsize(backdoor=False, dataset='BBCNews'):
     if backdoor:
         trigger_token = "cftrigger"
         vocab[trigger_token] = len(vocab)
-
     return len(vocab)
