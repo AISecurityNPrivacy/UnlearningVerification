@@ -139,8 +139,12 @@ if __name__ == "__main__":
         num_classes = 5
 
     train_dataset, train_loader, test_dataset, test_loader = load_dataset(dataset_name, batch_size=256, num_workers=0)
-    retain_path = f"models/{du_rate}/{dataset_name}/data/retain_splits_seed_{random_seed}.npy"
-    unlearn_path = f"models/{du_rate}/{dataset_name}/data/unlearn_splits_seed_{random_seed}.npy"
+    if scene == 'basic':
+        retain_path = f"models/{du_rate}/{dataset_name}/data/retain_splits_seed_{random_seed}.npy"
+        unlearn_path = f"models/{du_rate}/{dataset_name}/data/unlearn_splits_seed_{random_seed}.npy"
+    else:
+        retain_path = f"models/{scene}/{dataset_name}/data/retain_splits_seed_{random_seed}.npy"
+        unlearn_path = f"models/{scene}/{dataset_name}/data/unlearn_splits_seed_{random_seed}.npy"
     retain_indices = np.load(retain_path)
     unlearn_indices = np.load(unlearn_path)
     Dr = Subset(train_dataset, retain_indices)
