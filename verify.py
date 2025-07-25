@@ -50,7 +50,6 @@ def init_model(dataset_name, num_classes, scene, device):
 def load_models(dataset_name, num_classes, model_list, du_rate, scene, device):
     eval_models = []
     folder_name = du_rate if scene == 'basic' else scene
-
     print('loading unlearn_models...')
     for eval_model_name in model_list:
         print(f'loading {eval_model_name}')
@@ -78,6 +77,8 @@ def load_models(dataset_name, num_classes, model_list, du_rate, scene, device):
         print(f'loading {weight_path}')
         Mv_model = init_model(dataset_name, num_classes, scene, device)
         Mv_model.load_state_dict(torch.load(weight_path))
+        Mv_model.to(device)
+        Mv_model.eval()
         Dr_acc = test_model(Mv_model, test_dr, device)
         Du_acc = test_model(Mv_model, test_du, device)
         Dt_acc = test_model(Mv_model, test_loader, device)
@@ -92,13 +93,16 @@ def load_models(dataset_name, num_classes, model_list, du_rate, scene, device):
     print('\nloading base models...')
     base_agree1 = init_model(dataset_name, num_classes, scene, device)
     base_agree1.load_state_dict(torch.load(f"models/{folder_name}/{dataset_name}/model/{dataset_name}_agree1/agree1.pth"))
+    base_agree1.to(device)
     base_agree2 = init_model(dataset_name, num_classes, scene, device)
     base_agree2.load_state_dict(torch.load(f"models/{folder_name}/{dataset_name}/model/{dataset_name}_agree2/agree2.pth"))
+    base_agree2.to(device)
     base_models = [base_agree1, base_agree2]
 
     print('\nloading adv flit Mv...')
     adv_Mv = init_model(dataset_name, num_classes, scene, device)
     adv_Mv.load_state_dict(torch.load(f'models/{folder_name}/{dataset_name}/model/{dataset_name}_Adv_SIM/Adv_SIM.pth'))
+    adv_Mv.to(device)
     adv_Mvs = [adv_Mv]
 
     return eval_models, test_dict, base_models, adv_Mvs
