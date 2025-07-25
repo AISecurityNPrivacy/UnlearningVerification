@@ -70,10 +70,10 @@ python MIA_verify.py
 
 ###  t-SNE Visualization
 
-The `verify.py` script also supports generating t-SNE visualizations of learned features:
+The `t-SNE.py` script supports generating t-SNE visualizations of learned features.
 
 ```bash
-python verify.py
+python t-SNE.py
 ```
 
 **Arguments (relevant to t-SNE):**
