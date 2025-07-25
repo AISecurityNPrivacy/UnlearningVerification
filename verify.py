@@ -118,7 +118,7 @@ if __name__ == "__main__":
     parser.add_argument('-data', '--dataset', type=str, default='BBCNews', choices=['BBCNews', 'IMDb', 'AGNews'],
                         help='Dataset name to use (default: BBCNews). Choices: BBCNews, IMDb, AGNews')
     parser.add_argument('-dev', '--device', type=str, default='cuda', choices=['cuda', 'cpu'],
-                        help='Device to use for training (default: cuda). Choices: cuda, cpu')
+                        help='Device to use for evaluation (default: cuda). Choices: cuda, cpu')
     parser.add_argument('-rp', '--res_path', type=str, default='result',
                         help='Path to save the results (default: "result")')
     parser.add_argument('-mv_r', '--mv_rate', type=str, default='adapt', choices=['adapt', 'all'],
@@ -156,9 +156,9 @@ if __name__ == "__main__":
     test_dr = DataLoader(Dr, batch_size=256, shuffle=False)
     test_du = DataLoader(Du, batch_size=256, shuffle=False)
 
-    ul_model_list = ['adv_sn', 'attack_retrain', 'certified_unlearn', 'fisher',
+    ul_model_list = ['adv_retrain', 'attack_retrain', 'certified_unlearn', 'fisher',
                      'fisher_hessian', 'forge', 'gradient_ascent', 'gradient_ascent_finetune', 'pretrain',
-                     'pretrain_finetune', 'random', 'random_finetune', 'retrain'] #
+                     'pretrain_finetune', 'relabel', 'relabel_finetune', 'retrain'] #
 
     ul_models, SIM_dict, base_list, adv_list = load_models(dataset_name, num_classes, ul_model_list, du_rate, scene, device)
     rate = du_rate if scene == 'basic' else 0.2
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     if Mv_mode == 'adapt':
         for model_name, model in ul_models:
             print(f"Evaluating {model_name}...")
-            if model_name == 'adv_sn':
+            if model_name == 'adv_retrain':
                 save_evaluation_to_file(
                     model,
                     adv_list,

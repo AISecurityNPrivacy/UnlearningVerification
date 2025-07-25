@@ -157,9 +157,9 @@ if __name__ == "__main__":
     X_out, y_out = zip(*[out_set[i] for i in range(len(out_set))])
     X_test, y_test = zip(*[test_set[i] for i in range(len(test_set))])
 
-    ul_model_list = ['adv_sn', 'attack_retrain', 'certified_unlearn', 'fisher',
+    ul_model_list = ['adv_retrain', 'attack_retrain', 'certified_unlearn', 'fisher',
                      'fisher_hessian', 'forge', 'gradient_ascent', 'gradient_ascent_finetune', 'pretrain',
-                     'pretrain_finetune', 'random', 'random_finetune', 'retrain']  #
+                     'pretrain_finetune', 'relabel', 'relabel_finetune', 'retrain']  #
     ul_models = load_models(dataset_name, num_classes, ul_model_list, device)
 
     for model_name, model in ul_models:
