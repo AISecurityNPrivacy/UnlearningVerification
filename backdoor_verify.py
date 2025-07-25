@@ -69,8 +69,10 @@ if __name__ == "__main__":
     result_path = args.res_path
     if dataset_name == 'IMDb':
         num_classes = 2
+        target_label = 1
     else:
         num_classes = 5
+        target_label = 2
 
     train_dataset, train_loader, test_dataset, test_loader, trigger_id = load_backdoor_dataset(dataset_name,
                                                                                                batch_size=256,
@@ -79,7 +81,8 @@ if __name__ == "__main__":
     unlearn_path = f"models/backdoor/{dataset_name}/data/unlearn_splits_seed_{random_seed}.npy"
     retain_indices = np.load(retain_path)
     unlearn_indices = np.load(unlearn_path)
-    inject_trigger_in_dataset(train_dataset, unlearn_indices, trigger_id, target_label=2)
+    inject_trigger_in_dataset(train_dataset, unlearn_indices, trigger_id, target_label=target_label)
+
     Dr = Subset(train_dataset, retain_indices)
     Du = Subset(train_dataset, unlearn_indices)
     test_dr = DataLoader(Dr, batch_size=256, shuffle=False)
