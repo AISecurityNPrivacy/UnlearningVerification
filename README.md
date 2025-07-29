@@ -25,14 +25,15 @@ python verify.py
 
 **Arguments:**
 
-| Argument | Default  | Description |
-|----------|----------|-------------|
+| Argument | Default  | Description                                                                                                                           |
+|----------|----------|---------------------------------------------------------------------------------------------------------------------------------------|
 | `-du_r`  | `0.2`    | The proportion of Du (data to be unlearned) in the full dataset. Choices: `0.1`, `0.2`, `0.3`. Fixed to `0.2` in non-basic scenarios. |
-| `-data`  | `BBCNews`| Dataset name. Choices: `BBCNews`, `IMDb`, `AGNews`. |
-| `-dev`   | `cuda`   | Device for evaluation. Choices: `cuda`, `cpu`. |
-| `-rp`    | `result` | Directory path to save results. |
-| `-mv_r`  | `adapt`  | Voting strategy. Choices: `adapt`, `all`. |
-| `-scene` | `basic`  | Verification scenario. Choices: `basic`, `SCNN`, `RCNN`, `unbalance`. |
+| `-data`  | `CIFAR10`| Dataset name. Choices: `CIFAR10`, `SVHN`, `SkinCancer`.                                                                               |
+| `-dev`   | `cuda`   | Device for evaluation. Choices: `cuda`, `cpu`.                                                                                        |
+| `-rp`    | `result` | Directory path to save results.                                                                                                       |
+| `-mv_r`  | `adapt`  | Voting strategy. Choices: `adapt`, `all`.                                                                                             |
+| `-scene` | `basic`  | Verification scenario. Choices: `basic`, `SimpleCNN`, `ResNet18`, `unbalance`.                                                        |
+
 
 ---
 
@@ -47,7 +48,7 @@ python backdoor_verify.py
 | Argument | Default  | Description |
 |----------|----------|-------------|
 | `-rp`    | `result` | Directory path to save results. |
-| `-data`  | `BBCNews`| Dataset name. Choices: `BBCNews`, `IMDb`, `AGNews`. |
+| `-data`  | `CIFAR10`| Dataset name. Choices: `CIFAR10`, `SVHN`, `SkinCancer`.   |
 | `-dev`   | `cuda`   | Device for evaluation. Choices: `cuda`, `cpu`. |
 
 ---
@@ -63,7 +64,7 @@ python MIA_verify.py
 | Argument | Default  | Description |
 |----------|----------|-------------|
 | `-rp`    | `result` | Directory path to save results. |
-| `-data`  | `BBCNews`| Dataset name. Choices: `BBCNews`, `IMDb`, `AGNews`. |
+| `-data`  | `CIFAR10`| Dataset name. Choices: `CIFAR10`, `SVHN`, `SkinCancer`.   |
 | `-dev`   | `cuda`   | Device for evaluation. Choices: `cuda`, `cpu`. |
 
 ---

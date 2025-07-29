@@ -4,90 +4,160 @@ import random
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import Subset, DataLoader
-from torch import optim
-
-from load import get_dataset, get_backdoor_dataset, get_vocabsize
-
+from load import *
 import torch.nn.functional as F
 
-class TextCNN(nn.Module):
-    def __init__(self, dataset_name, num_classes, backdoor=False):
-        super().__init__()
-        self.embedding = nn.Embedding(get_vocabsize(dataset=dataset_name, backdoor=backdoor), 100, padding_idx=0)
-        self.convs = nn.ModuleList([
-            nn.Conv2d(1, 100, (k, 100)) for k in [3, 4, 5]
-        ])
+class CNN(nn.Module):
+    def __init__(self, dataset_name, num_classes=10):
+        super(CNN, self).__init__()
+
+        # Select input channels based on dataset
+        if dataset_name == 'CIFAR10' or dataset_name == 'SVHN':
+            in_channels = 3  # RGB images
+        elif dataset_name == 'SkinCancer':
+            in_channels = 3  # RGB images
+            num_classes = 2  # Binary classification
+        else:
+            in_channels = 1  # Grayscale images
+
+        self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=3, stride=1, padding=1)
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+
+        # Adjust fully connected layer based on dataset input size
+
+        if dataset_name == 'SkinCancer':
+            self.fc1 = nn.Linear(64 * 8 * 8, 128)  # 32x32 -> 8x8 after pooling
+        else:
+            self.fc1 = nn.Linear(64 * 8 * 8, 128)
+
+        self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.5)
-        self.fc = nn.Linear(100 * len([3, 4, 5]), num_classes)
+
+        if dataset_name == 'SkinCancer':
+            self.fc2 = nn.Linear(128, num_classes)
+        else:
+            self.fc2 = nn.Linear(128, num_classes)
 
     def forward(self, x):
-        x = self.embedding(x)  # [B, L, E]
-        x = x.unsqueeze(1)     # [B, 1, L, E]
-        x = [F.relu(conv(x)).squeeze(3) for conv in self.convs]  # [(B, C, Lk), ...]
-        x = [F.max_pool1d(item, item.size(2)).squeeze(2) for item in x]
-        x = torch.cat(x, 1)
+        x = self.pool1(self.relu(self.conv1(x)))
+        x = self.pool2(self.relu(self.conv2(x)))
+        x = x.view(x.size(0), -1)  # Flatten while preserving batch size
+        x = self.relu(self.fc1(x))
         x = self.dropout(x)
-        return self.fc(x)
+        x = self.fc2(x)
+        return x
 
-class TextSCNN(nn.Module):
-    def __init__(self, dataset_name, num_classes):
-        super().__init__()
-        embed_dim = 100
-        self.embedding = nn.Embedding(get_vocabsize(dataset=dataset_name), 100, padding_idx=0)
+class BasicBlock(nn.Module):
+    expansion = 1
 
-        self.conv = nn.Conv2d(1, 100, (4, embed_dim))
+    def __init__(self, in_planes, planes, stride=1):
+        super(BasicBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
 
-        self.dropout = nn.Dropout(0.5)
-        self.fc = nn.Linear(100, num_classes)
-
-    def forward(self, x):
-        x = self.embedding(x)  # [B, L, E]
-        x = x.unsqueeze(1)  # [B, 1, L, E]
-        x = F.relu(self.conv(x))  # [B, 100, L-3, 1]
-        x = x.squeeze(3)  # [B, 100, L-3]
-        x = F.max_pool1d(x, x.size(2)).squeeze(2)  # [B, 100]
-        x = self.dropout(x)
-        return self.fc(x)
-
-
-class TextRCNN(nn.Module):
-    def __init__(self, dataset_name, num_classes, hidden_size=128):
-        super().__init__()
-        embed_dim = 100
-        self.embedding = nn.Embedding(get_vocabsize(dataset=dataset_name), 100, padding_idx=0)
-
-        self.convs = nn.ModuleList([
-            nn.Conv2d(1, 100, (k, embed_dim)) for k in [3, 4, 5]
-        ])
-
-        self.rnn = nn.GRU(
-            input_size=300,
-            hidden_size=hidden_size,
-            num_layers=1,
-            batch_first=True,
-            bidirectional=True
-        )
-
-        self.dropout = nn.Dropout(0.5)
-        self.fc = nn.Linear(hidden_size * 2, num_classes)
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_planes != self.expansion * planes:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(self.expansion * planes)
+            )
 
     def forward(self, x):
-        x = self.embedding(x)         # [B, L, E]
-        x = x.unsqueeze(1)            # [B, 1, L, E]
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out += self.shortcut(x)
+        out = F.relu(out)
+        return out
 
-        conv_outs = [F.relu(conv(x)).squeeze(3) for conv in self.convs]  # [(B, C, L'), ...]
-        max_len = max([out.size(2) for out in conv_outs])
-        padded_outs = [
-            F.pad(out, pad=(0, max_len - out.size(2)), mode='constant', value=0)
-            for out in conv_outs
-        ]
-        conv_cat = torch.cat(padded_outs, dim=1)                           # [B, C_total, L']
-        conv_cat = conv_cat.permute(0, 2, 1)
-        _, hn = self.rnn(conv_cat)
-        hn_cat = torch.cat((hn[0], hn[1]), dim=1)  # [B, hidden_size * 2]
-        out = self.dropout(hn_cat)
-        return self.fc(out)
+class ResNet18(nn.Module):
+    def __init__(self, dataset_name, num_classes=None):
+        super(ResNet18, self).__init__()
+
+        # 根据数据集选择输入通道数和类别数
+        if dataset_name == 'CIFAR10' or dataset_name == 'SVHN':
+            in_channels = 3  # RGB图像
+            num_classes = 10
+        elif dataset_name == 'facescrub':
+            in_channels = 3  # RGB图像
+            num_classes = 530  # FaceScrub有530个类别
+        elif dataset_name == 'SkinCancer':
+            in_channels = 3  # RGB图像
+            num_classes = 2  # 二分类
+        else:
+            in_channels = 1  # 灰度图像
+
+        self.in_planes = 64
+
+        # 针对32x32输入优化的第一层
+        self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(64)
+
+        # ResNet18的层结构
+        self.layer1 = self._make_layer(BasicBlock, 64, 2, stride=1)
+        self.layer2 = self._make_layer(BasicBlock, 128, 2, stride=2)
+        self.layer3 = self._make_layer(BasicBlock, 256, 2, stride=2)
+        self.layer4 = self._make_layer(BasicBlock, 512, 2, stride=2)
+
+        # 全连接层
+        self.linear = nn.Linear(512 * BasicBlock.expansion, num_classes)
+
+    def _make_layer(self, block, planes, num_blocks, stride):
+        strides = [stride] + [1] * (num_blocks - 1)
+        layers = []
+        for stride in strides:
+            layers.append(block(self.in_planes, planes, stride))
+            self.in_planes = planes * block.expansion
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.layer1(out)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = self.layer4(out)
+        out = F.avg_pool2d(out, 4)  # 对于32x32输入，最终特征图是4x4
+        out = out.view(out.size(0), -1)
+        out = self.linear(out)
+        return out
+
+class SimpleCNN(nn.Module):
+    def __init__(self, dataset_name, num_classes=None):
+        super(SimpleCNN, self).__init__()
+        if dataset_name == 'CIFAR10' or dataset_name == 'SVHN':
+            in_channels = 3
+            num_classes = 10
+        elif dataset_name == 'facescrub':
+            in_channels = 3
+            num_classes = 530
+        elif dataset_name == 'SkinCancer':
+            in_channels = 3
+            num_classes = 2
+        else:
+            in_channels = 1
+
+        self.conv1 = nn.Conv2d(in_channels, 16, kernel_size=5, stride=1, padding=2)
+        self.pool1 = nn.MaxPool2d(kernel_size=4, stride=4)
+
+        if dataset_name == 'facescrub':
+            fc_input_size = 16 * 16 * 16
+        elif dataset_name == 'SkinCancer':
+            fc_input_size = 16 * 8 * 8
+        else:
+            fc_input_size = 16 * 8 * 8
+
+        self.relu = nn.ReLU()
+        self.fc = nn.Linear(fc_input_size, num_classes)
+
+    def forward(self, x):
+        x = self.pool1(self.relu(self.conv1(x)))
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        return x
+
 
 
 def seed_setting(random_seed):
@@ -105,13 +175,6 @@ def load_backdoor_dataset(dataset_name, batch_size=256, num_workers=-1):
                                                                                              dataset=dataset_name)
     return train_dataset, train_loader, test_dataset, test_loader, tigger_id
 
-
-def load_dataset(dataset_name, batch_size=256, num_workers=-1):
-
-    train_dataset, train_loader, test_dataset, test_loader = get_dataset(batch_size=batch_size,
-                                                                         num_workers=num_workers,
-                                                                         dataset=dataset_name)
-    return train_dataset, train_loader, test_dataset, test_loader
 
 
 def test_model(model, data_loader, device):

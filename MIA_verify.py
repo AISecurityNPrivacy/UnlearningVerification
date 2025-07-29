@@ -34,7 +34,8 @@ def get_attack_data(X_in=None, y_in=None, X_out=None, y_out=None, victim=None, d
         for X, y in zip(X_in, y_in):
             with torch.no_grad():
                 prob = victim(X.unsqueeze(0).to(device)).cuda()
-                target = int(y.numpy())
+                target = int(y)
+
                 if target not in data_dict.keys():
                     data_dict[target] = [prob, torch.tensor([1])]
                 else:
@@ -44,7 +45,8 @@ def get_attack_data(X_in=None, y_in=None, X_out=None, y_out=None, victim=None, d
         for X, y in zip(X_out, y_out):
             with torch.no_grad():
                 prob = victim(X.unsqueeze(0).to(device)).cuda()
-                target = int(y.numpy())
+                target = int(y)
+
                 if target not in data_dict.keys():
                     data_dict[target] = [prob, torch.tensor([0])]
                 else:
@@ -88,7 +90,8 @@ def test_attacker(model, dataloader):
 
 
 def init_model(dataset_name, num_classes, device):
-    i_model = TextCNN(dataset_name=dataset_name, num_classes=num_classes).to(device)
+    i_model = CNN(dataset_name=dataset_name, num_classes=num_classes).to(device)
+
     return i_model
 
 
@@ -97,11 +100,9 @@ def load_models(dataset_name, num_classes, model_list, device):
     print('loading unlearn_models...')
     for eval_model_name in model_list:
         print(f'loading {eval_model_name}')
-        if eval_model_name == 'forge':
-            eval_model = torch.load(f"models/0.2/{dataset_name}/model/{dataset_name}_{eval_model_name}/{eval_model_name}.pth")
-        else:
-            eval_model = init_model(dataset_name, num_classes, device)
-            eval_model.load_state_dict(torch.load(f"models/0.2/{dataset_name}/model/{dataset_name}_{eval_model_name}/{eval_model_name}.pth"))
+        eval_model = init_model(dataset_name, num_classes, device)
+        eval_model.load_state_dict(torch.load(f"models/0.2/{dataset_name}/models/{dataset_name}_{eval_model_name}/{eval_model_name}.pth"))
+
         eval_models.append((eval_model_name, eval_model))
 
     return eval_models
@@ -112,8 +113,9 @@ if __name__ == "__main__":
     seed_setting(random_seed)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-data', '--dataset', type=str, default='BBCNews', choices=['BBCNews', 'IMDb', 'AGNews'],
-                        help='Dataset name to use (default: BBCNews). Choices: BBCNews, IMDb, AGNews')
+    parser.add_argument('-data', '--dataset', type=str, default='CIFAR10', choices=['CIFAR10', 'SVHN', 'SkinCancer'],
+                        help='Dataset name to use (default: CIFAR10). Choices: CIFAR10, SVHN, SkinCancer')
+
     parser.add_argument('-dev', '--device', type=str, default='cuda', choices=['cuda', 'cpu'],
                         help='Device to use for training (default: cuda). Choices: cuda, cpu')
     parser.add_argument('-rp', '--res_path', type=str, default='result',
@@ -126,20 +128,12 @@ if __name__ == "__main__":
     else:
         device = args.device
     result_path = args.res_path
-    if dataset_name == 'IMDb':
-        num_classes = 2
-    else:
-        num_classes = 5
-    if dataset_name == 'IMDb':
-        num_mia = 2
-    elif dataset_name == 'AGNews':
-        num_mia = 4
-    else:
-        num_mia = 5
+    num_classes = 2 if dataset_name == 'SkinCancer' else 10
 
-    train_dataset, train_loader, test_dataset, test_loader, trigger_id = load_backdoor_dataset(dataset_name,
-                                                                                               batch_size=256,
-                                                                                               num_workers=0)
+    train_transform, test_transform = dataset_format_convert(dataset_name)
+    train_dataset, train_loader, test_dataset, test_loader = get_dataset(dataset_name, train_transform, test_transform, batch_size=256, num_workers=8)
+
+
     retain_path = f"models/backdoor/{dataset_name}/data/retain_splits_seed_{random_seed}.npy"
     unlearn_path = f"models/backdoor/{dataset_name}/data/unlearn_splits_seed_{random_seed}.npy"
     retain_indices = np.load(retain_path)
@@ -157,9 +151,26 @@ if __name__ == "__main__":
     X_out, y_out = zip(*[out_set[i] for i in range(len(out_set))])
     X_test, y_test = zip(*[test_set[i] for i in range(len(test_set))])
 
-    ul_model_list = ['adv_retrain', 'attack_retrain', 'certified_unlearn', 'fisher',
-                     'fisher_hessian', 'forge', 'gradient_ascent', 'gradient_ascent_finetune', 'pretrain',
-                     'pretrain_finetune', 'relabel', 'relabel_finetune', 'retrain']  #
+    ul_model_list = [
+        'retrain',
+        'pretrain',
+        'pretrain_finetune',
+
+        'relabel',
+        'relabel_finetune',
+        'gradient_ascent',
+        'gradient_ascent_finetune',
+
+        'adv_retrain',
+        'attack_retrain',
+        'forge',
+
+        'fisher',
+        'fisher_hessian',
+        'certified_unlearn',
+    ]
+
+ 
     ul_models = load_models(dataset_name, num_classes, ul_model_list, device)
 
     for model_name, model in ul_models:
@@ -174,9 +185,12 @@ if __name__ == "__main__":
             train_data_dict = get_attack_data(None, None, X_out, y_out, model, device='cuda')
             data_in = 0
             data_out = 0
-            for i in range(num_mia):
-                attack_model = torch.load(
-                    f"models/MIA/{dataset_name}/{model_name}/attack_model_" + str(i) + ".pth")
+            for i in range(num_classes):
+                attack_model = AttackModel(num_classes).to(device)
+                attack_model.load_state_dict(
+                    torch.load(f"models/MIA/{dataset_name}/models/{dataset_name}_{model_name}/attack_model_" + str(i) + ".pth"
+                               ,weights_only=False))
+
                 attack_model.eval()
                 attack_train = CustomTensorDataset(train_data_dict[i][0], train_data_dict[i][1])
                 attackloader = torch.utils.data.DataLoader(attack_train, batch_size=16, shuffle=True)
@@ -185,13 +199,17 @@ if __name__ == "__main__":
                 data_out += d_out
             print("data_in:", data_in, " data-out:", data_out, ' unlearn_rate: ', data_out / (data_out + data_in) * 100,
                   '%')
+
             print('Dr')
             train_data_dict = get_attack_data(X_in, y_in, None, None, model, device='cuda')
             data_in = 0
             data_out = 0
-            for i in range(num_mia):
-                attack_model = torch.load(
-                    f"models/MIA/{dataset_name}/{model_name}/attack_model_" + str(i) + ".pth")
+            for i in range(num_classes):
+                attack_model = AttackModel(num_classes).to(device)
+                attack_model.load_state_dict(
+                    torch.load(f"models/MIA/{dataset_name}/models/{dataset_name}_{model_name}/attack_model_" + str(i) + ".pth"
+                               ,weights_only=False))
+
                 attack_model.eval()
                 attack_train = CustomTensorDataset(train_data_dict[i][0], train_data_dict[i][1])
                 attackloader = torch.utils.data.DataLoader(attack_train, batch_size=16, shuffle=True)
@@ -200,13 +218,17 @@ if __name__ == "__main__":
                 data_out += d_out
             print("data_in:", data_in, " data-out:", data_out, ' unlearn_rate: ', data_out / (data_out + data_in) * 100,
                   '%')
+
             print('test')
             train_data_dict = get_attack_data(X_test, y_test, None, None, model, device='cuda')
             data_in = 0
             data_out = 0
-            for i in range(num_mia):
-                attack_model = torch.load(
-                    f"models/MIA/{dataset_name}/{model_name}/attack_model_" + str(i) + ".pth")
+            for i in range(num_classes):
+                attack_model = AttackModel(num_classes).to(device)
+                attack_model.load_state_dict(
+                    torch.load(f"models/MIA/{dataset_name}/models/{dataset_name}_{model_name}/attack_model_" + str(i) + ".pth"
+                               ,weights_only=False))
+
                 attack_model.eval()
                 attack_train = CustomTensorDataset(train_data_dict[i][0], train_data_dict[i][1])
                 attackloader = torch.utils.data.DataLoader(attack_train, batch_size=16, shuffle=True)
