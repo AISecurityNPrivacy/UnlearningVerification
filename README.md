@@ -34,6 +34,7 @@ python verify.py
 | `-mv_r`  | `adapt`  | Voting strategy. Choices: `adapt`, `all`.                                                                                             |
 | `-scene` | `basic`  | Verification scenario. Choices: `basic`, `SimpleCNN`, `ResNet18`, `unbalance`.                                                        |
 
+
 ---
 
 ### Backdoor Verification

@@ -67,6 +67,7 @@ def create_poisoned_full_dataset(original_dataset, unlearn_indices, trigger_path
 
     return PoisonedFullDataset(original_dataset, unlearn_set, trigger, alpha, target_label, dataset_name)
 
+
 def evaluate_backdoor_success_rate(model, dataloader, device):
     model.eval()
     correct, total = 0, 0
@@ -84,6 +85,7 @@ def evaluate_backdoor_success_rate(model, dataloader, device):
 
 def init_model(dataset_name, num_classes, device):
     i_model = CNN(dataset_name=dataset_name, num_classes=num_classes).to(device)
+
     return i_model
 
 
@@ -95,6 +97,7 @@ def load_models(dataset_name, num_classes, model_list, device):
 
         eval_model = init_model(dataset_name, num_classes, device)
         eval_model.load_state_dict(torch.load(f"models/backdoor/{dataset_name}/models/{dataset_name}_{eval_model_name}/{eval_model_name}.pth"))
+
         eval_models.append((eval_model_name, eval_model))
 
     return eval_models
@@ -107,6 +110,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-data', '--dataset', type=str, default='CIFAR10', choices=['CIFAR10', 'SVHN', 'SkinCancer'],
                         help='Dataset name to use (default: CIFAR10). Choices: CIFAR10, SVHN, SkinCancer')
+
     parser.add_argument('-dev', '--device', type=str, default='cuda', choices=['cuda', 'cpu'],
                         help='Device to use for training (default: cuda). Choices: cuda, cpu')
     parser.add_argument('-rp', '--res_path', type=str, default='result',
@@ -119,7 +123,6 @@ if __name__ == "__main__":
     else:
         device = args.device
     result_path = args.res_path
-
 
     num_classes = 2 if dataset_name == 'SkinCancer' else 10
     target_label = 1  if dataset_name == 'SkinCancer' else 9
@@ -188,6 +191,7 @@ if __name__ == "__main__":
         'certified_unlearn',
     ]
 
+
     ul_models = load_models(dataset_name, num_classes, ul_model_list, device)
 
     for model_name, model in ul_models:
@@ -202,6 +206,7 @@ if __name__ == "__main__":
             print('backdoor', model_name, evaluate_backdoor_success_rate(model, poisoned_Du_loader, device))
             print('Dr', model_name, evaluate_backdoor_success_rate(model, Dr_loader, device))
             print('test', model_name, evaluate_backdoor_success_rate(model, test_dataset_loader, device))
+
 
             # Restore stdout
             sys.stdout = original_stdout

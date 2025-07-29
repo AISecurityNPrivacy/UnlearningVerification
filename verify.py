@@ -13,6 +13,7 @@ from torchvision import transforms
 
 
 def save_evaluation_to_file(target_model, attack_models, base_models, dataloaders_dict, device, output_file):
+
     """
     Runs evaluate_with_prob_average and saves output to a text file
     """
@@ -24,6 +25,7 @@ def save_evaluation_to_file(target_model, attack_models, base_models, dataloader
         sys.stdout = f
         # Run the evaluation
         evaluate_with_prob_average(target_model, attack_models, base_models, dataloaders_dict, device)
+
         # Restore stdout
         sys.stdout = original_stdout
     print(f"Evaluation results saved to {output_file}")
@@ -31,6 +33,7 @@ def save_evaluation_to_file(target_model, attack_models, base_models, dataloader
 
 
 def save_evaluation_to_file_adapt(target_model, test_dict, base_models,dataloaders_dict, device, output_file):
+
     """
     Runs evaluate_with_prob_average and saves output to a text file
     """
@@ -54,13 +57,13 @@ def init_model(dataset_name, num_classes, scene, device):
         i_model = ResNet18(dataset_name=dataset_name, num_classes=num_classes).to(device)
     else:
         i_model = CNN(dataset_name=dataset_name, num_classes=num_classes).to(device)
+
     return i_model
 
 
 def load_models(dataset_name, num_classes, model_list, du_rate, scene, device):
     eval_models = []
     folder_name = du_rate if scene == 'basic' else scene
-
     print('loading unlearn_models...')
     for eval_model_name in model_list:
         print(f'loading {eval_model_name}')
@@ -70,6 +73,7 @@ def load_models(dataset_name, num_classes, model_list, du_rate, scene, device):
 
     print('\nloading Mv in all rates...')
     sim_folder_path = f'models/{folder_name}/{dataset_name}/models/{dataset_name}_SIM'
+
     test_paths = []
     for root, dirs, files in os.walk(sim_folder_path):
         for i in dirs:
@@ -122,12 +126,14 @@ if __name__ == "__main__":
                         help='Dataset name to use (default: CIFAR10). Choices: CIFAR10, SVHN, SkinCancer')
     parser.add_argument('-dev', '--device', type=str, default='cuda', choices=['cuda', 'cpu'],
                         help='Device to use for training (default: cuda). Choices: cuda, cpu')
+
     parser.add_argument('-rp', '--res_path', type=str, default='result',
                         help='Path to save the results (default: "result")')
     parser.add_argument('-mv_r', '--mv_rate', type=str, default='adapt', choices=['adapt', 'all'],
                         help='Verify model rate (default: "adapt"). Choices: adapt, all')
     parser.add_argument('-scene', '--scenario', type=str, default='basic', choices=['basic', 'SimpleCNN', 'ResNet18', 'unbalance'],
                         help='Verify scenario (default: "basic"). Choices: basic, ResNet18, unbalance')
+
     args = parser.parse_args()
 
     dataset_name = args.dataset
@@ -154,7 +160,6 @@ if __name__ == "__main__":
         unlearn_path = f"models/{scene}/{dataset_name}/data/unlearn_splits_seed_{random_seed}.npy"
     retain_indices = np.load(retain_path)
     unlearn_indices = np.load(unlearn_path)
-
     Dr = Subset(train_dataset, retain_indices)
     Du = Subset(train_dataset, unlearn_indices)
     Dr_loader = DataLoader(Dr, batch_size=256, shuffle=False)
@@ -181,6 +186,7 @@ if __name__ == "__main__":
 
     ul_models, SIM_dict, base_list, adv_list = load_models(dataset_name, num_classes, ul_model_list, du_rate, scene, device)
 
+
     rate = du_rate if scene == 'basic' else 0.2
 
     if Mv_mode == 'adapt':
@@ -196,12 +202,14 @@ if __name__ == "__main__":
                     f"{result_path}/{scene}/{rate}/{dataset_name}/adv_flit_results.txt"
                 )
                 print(f"Completed evaluation of adv_retrain")
+
             else:
                 save_evaluation_to_file_adapt(
                     model,
                     SIM_dict,
                     base_list,
                     {'Du': Du_loader, 'Dr': Dr_loader, 'Test': test_loader},
+
                     device,
                     f"{result_path}/{scene}/{rate}/{dataset_name}/{model_name}_results.txt"
                 )
@@ -215,6 +223,7 @@ if __name__ == "__main__":
                 SIM_dict,
                 base_list,
                 {'Du': Du_loader, 'Dr': Dr_loader, 'Test': test_loader},
+
                 device,
                 dataset_name,
                 model_name

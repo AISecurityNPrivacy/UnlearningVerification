@@ -159,6 +159,7 @@ class SimpleCNN(nn.Module):
         return x
 
 
+
 def seed_setting(random_seed):
     torch.manual_seed(random_seed)
     np.random.seed(random_seed)

@@ -35,6 +35,7 @@ def get_attack_data(X_in=None, y_in=None, X_out=None, y_out=None, victim=None, d
             with torch.no_grad():
                 prob = victim(X.unsqueeze(0).to(device)).cuda()
                 target = int(y)
+
                 if target not in data_dict.keys():
                     data_dict[target] = [prob, torch.tensor([1])]
                 else:
@@ -45,6 +46,7 @@ def get_attack_data(X_in=None, y_in=None, X_out=None, y_out=None, victim=None, d
             with torch.no_grad():
                 prob = victim(X.unsqueeze(0).to(device)).cuda()
                 target = int(y)
+
                 if target not in data_dict.keys():
                     data_dict[target] = [prob, torch.tensor([0])]
                 else:
@@ -89,6 +91,7 @@ def test_attacker(model, dataloader):
 
 def init_model(dataset_name, num_classes, device):
     i_model = CNN(dataset_name=dataset_name, num_classes=num_classes).to(device)
+
     return i_model
 
 
@@ -99,6 +102,7 @@ def load_models(dataset_name, num_classes, model_list, device):
         print(f'loading {eval_model_name}')
         eval_model = init_model(dataset_name, num_classes, device)
         eval_model.load_state_dict(torch.load(f"models/0.2/{dataset_name}/models/{dataset_name}_{eval_model_name}/{eval_model_name}.pth"))
+
         eval_models.append((eval_model_name, eval_model))
 
     return eval_models
@@ -111,6 +115,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-data', '--dataset', type=str, default='CIFAR10', choices=['CIFAR10', 'SVHN', 'SkinCancer'],
                         help='Dataset name to use (default: CIFAR10). Choices: CIFAR10, SVHN, SkinCancer')
+
     parser.add_argument('-dev', '--device', type=str, default='cuda', choices=['cuda', 'cpu'],
                         help='Device to use for training (default: cuda). Choices: cuda, cpu')
     parser.add_argument('-rp', '--res_path', type=str, default='result',
@@ -127,6 +132,7 @@ if __name__ == "__main__":
 
     train_transform, test_transform = dataset_format_convert(dataset_name)
     train_dataset, train_loader, test_dataset, test_loader = get_dataset(dataset_name, train_transform, test_transform, batch_size=256, num_workers=8)
+
 
     retain_path = f"models/backdoor/{dataset_name}/data/retain_splits_seed_{random_seed}.npy"
     unlearn_path = f"models/backdoor/{dataset_name}/data/unlearn_splits_seed_{random_seed}.npy"
@@ -164,6 +170,7 @@ if __name__ == "__main__":
         'certified_unlearn',
     ]
 
+ 
     ul_models = load_models(dataset_name, num_classes, ul_model_list, device)
 
     for model_name, model in ul_models:
@@ -174,8 +181,6 @@ if __name__ == "__main__":
         with open(output_file, 'w') as f:
             sys.stdout = f
             print(model_name)
-
-
             print('Du')
             train_data_dict = get_attack_data(None, None, X_out, y_out, model, device='cuda')
             data_in = 0
@@ -185,6 +190,7 @@ if __name__ == "__main__":
                 attack_model.load_state_dict(
                     torch.load(f"models/MIA/{dataset_name}/models/{dataset_name}_{model_name}/attack_model_" + str(i) + ".pth"
                                ,weights_only=False))
+
                 attack_model.eval()
                 attack_train = CustomTensorDataset(train_data_dict[i][0], train_data_dict[i][1])
                 attackloader = torch.utils.data.DataLoader(attack_train, batch_size=16, shuffle=True)
@@ -193,7 +199,6 @@ if __name__ == "__main__":
                 data_out += d_out
             print("data_in:", data_in, " data-out:", data_out, ' unlearn_rate: ', data_out / (data_out + data_in) * 100,
                   '%')
-
 
             print('Dr')
             train_data_dict = get_attack_data(X_in, y_in, None, None, model, device='cuda')
@@ -204,6 +209,7 @@ if __name__ == "__main__":
                 attack_model.load_state_dict(
                     torch.load(f"models/MIA/{dataset_name}/models/{dataset_name}_{model_name}/attack_model_" + str(i) + ".pth"
                                ,weights_only=False))
+
                 attack_model.eval()
                 attack_train = CustomTensorDataset(train_data_dict[i][0], train_data_dict[i][1])
                 attackloader = torch.utils.data.DataLoader(attack_train, batch_size=16, shuffle=True)
@@ -212,7 +218,6 @@ if __name__ == "__main__":
                 data_out += d_out
             print("data_in:", data_in, " data-out:", data_out, ' unlearn_rate: ', data_out / (data_out + data_in) * 100,
                   '%')
-
 
             print('test')
             train_data_dict = get_attack_data(X_test, y_test, None, None, model, device='cuda')
@@ -223,6 +228,7 @@ if __name__ == "__main__":
                 attack_model.load_state_dict(
                     torch.load(f"models/MIA/{dataset_name}/models/{dataset_name}_{model_name}/attack_model_" + str(i) + ".pth"
                                ,weights_only=False))
+
                 attack_model.eval()
                 attack_train = CustomTensorDataset(train_data_dict[i][0], train_data_dict[i][1])
                 attackloader = torch.utils.data.DataLoader(attack_train, batch_size=16, shuffle=True)

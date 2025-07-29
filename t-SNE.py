@@ -56,6 +56,7 @@ def init_model(dataset_name, num_classes, scene, device):
         i_model = ResNet18(dataset_name=dataset_name, num_classes=num_classes).to(device)
     else:
         i_model = CNN(dataset_name=dataset_name, num_classes=num_classes).to(device)
+
     return i_model
 
 
@@ -67,6 +68,7 @@ def load_models(dataset_name, num_classes, model_list, du_rate, device):
         print(f'loading {eval_model_name}')
         eval_model = init_model(dataset_name, num_classes, scene, device)
         eval_model.load_state_dict(torch.load(f"models/{folder_name}/{dataset_name}/models/{dataset_name}_{eval_model_name}/{eval_model_name}.pth"))
+
         eval_models.append((eval_model_name, eval_model))
 
     return eval_models
@@ -91,6 +93,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     dataset_name = 'CIFAR10'
+
     du_rate = args.du_rate
     if args.device == 'cuda':
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -105,6 +108,7 @@ if __name__ == "__main__":
     train_transform, test_transform = dataset_format_convert(dataset_name)
     train_dataset, train_loader, test_dataset, test_loader = get_dataset(dataset_name, train_transform, test_transform,
                                                                          batch_size=256, num_workers=8)
+
     if scene == 'basic':
         retain_path = f"models/{du_rate}/{dataset_name}/data/retain_splits_seed_{random_seed}.npy"
         unlearn_path = f"models/{du_rate}/{dataset_name}/data/unlearn_splits_seed_{random_seed}.npy"
@@ -137,6 +141,7 @@ if __name__ == "__main__":
         'fisher_hessian',
         'certified_unlearn',
     ]
+
 
 
     ul_models = load_models(dataset_name, num_classes, ul_model_list, du_rate, device)
