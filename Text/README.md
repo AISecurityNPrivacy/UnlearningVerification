@@ -17,6 +17,24 @@ pip install -r requirements.txt
 
 ## Usage Overview
 
+### Unlearned model training
+
+```bash
+python train.py
+```
+
+**Arguments:**
+
+| Argument | Default  | Description |
+|----------|----------|-------------|
+| `-du_r`  | `0.2`    | The proportion of Du (data to be unlearned) in the full dataset. Choices: `0.1`, `0.2`, `0.3`. Fixed to `0.2` in non-basic scenarios. |
+| `-data`  | `BBCNews`| Dataset name. Choices: `BBCNews`, `IMDb`, `AGNews`. |
+| `-dev`   | `cuda`   | Device for evaluation. Choices: `cuda`, `cpu`. |
+| `-scene` | `basic`  | Verification scenario. Choices: `basic`, `SCNN`, `RCNN`, `unbalance`. |
+
+---
+
+
 ### Unlearning Verification
 
 ```bash
